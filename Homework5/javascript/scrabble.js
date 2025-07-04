@@ -3,38 +3,33 @@ File: scrabble.js
 GUI Assignment:  Homework 5
 Sarah Toth, UML C.S., Sarah_Toth@student.uml.edu
 Copyright (c) 2025 by Sarah.  All rights reserved.
-Updated by ST on July 4, 2025 at 4:15 AM
+Updated by ST on July 4, 2025 at 6:05 AM
 **/
 
+// When the DOM is ready, execute everything inside this function
 $(function () {
-  const rackSize = 7;                // Max number of tiles in player's rack
-  let totalScore = 0;                // Total accumulated score across rounds
-  let dictionarySet = new Set();     // Set of valid words loaded from dictionary
+  const rackSize = 7; // Number of tiles in the player's rack
+  let totalScore = 0; // Tracks the player's total score
+  let dictionarySet = new Set(); // Set to hold valid words for quick lookup
 
   // Disable submit button initially until dictionary is loaded
   $('#submit-word').prop('disabled', true);
 
-  // Load word dictionary from 'words.txt' and initialize game
-  async function loadDictionary() {
-    try {
-      const response = await fetch('../words.txt');
-      const text = await response.text();
-      dictionarySet = new Set(text.split(/\r?\n/).map(w => w.trim()).filter(Boolean));
-      $('#submit-word').prop('disabled', false); // Enable submit after loading
-      initTiles();        // Initialize starting rack of tiles
-      initDroppables();   // Setup droppable slots on board
-    } catch (error) {
-      console.error('Failed to load dictionary:', error);
+  // Load the dictionary from the predefined dictionaryWords array
+  function loadDictionary() {
+    if (Array.isArray(dictionaryWords)) {
+      dictionarySet = new Set(dictionaryWords);
+      $('#submit-word').prop('disabled', false); // Enable submit once dictionary is ready
+      initTiles();         // Generate initial tiles for the rack
+      initDroppables();    // Make board slots accept tile drops
+    } else {
+      console.error('dictionaryWords not found or not an array.');
     }
   }
 
-  loadDictionary();
+  loadDictionary(); // Initialize dictionary and game state
 
-  /**
-   * Generates a rack of tiles with a buildable word and fills the rest with random tiles
-   * @param {number} num - number of tiles to generate
-   * @returns {string[]} array of letters forming the rack
-   */
+  // Generate a rack of tiles that can form at least one valid word
   function getRandomTiles(num) {
     const rack = [];
     const letters = Object.keys(ScrabbleTiles);
@@ -43,7 +38,7 @@ $(function () {
     let chosenWord = '';
     let maxTries = 1000;
 
-    // Attempt to find a valid word that can be built with available tiles
+    // Try to find a word that can be constructed from remaining tiles
     while (maxTries-- > 0) {
       const word = validWords[Math.floor(Math.random() * validWords.length)];
       const letterCounts = {};
@@ -67,7 +62,7 @@ $(function () {
       }
     }
 
-    // Deduct tiles used for the chosen word from inventory and add to rack
+    // Add chosen word's letters to rack
     if (chosenWord) {
       for (let ch of chosenWord) {
         ScrabbleTiles[ch]["number-remaining"]--;
@@ -75,7 +70,7 @@ $(function () {
       }
     }
 
-    // Fill the rest of the rack with random available tiles
+    // Fill remaining rack spots with random valid tiles
     while (rack.length < num) {
       const letter = letters[Math.floor(Math.random() * letters.length)];
       if (ScrabbleTiles[letter]["number-remaining"] > 0) {
@@ -84,7 +79,7 @@ $(function () {
       }
     }
 
-    // Shuffle the rack letters randomly
+    // Shuffle rack
     for (let i = rack.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [rack[i], rack[j]] = [rack[j], rack[i]];
@@ -93,70 +88,51 @@ $(function () {
     return rack;
   }
 
-  /**
-   * Initialize the tile rack with a full new set of tiles
-   */
+  // Initialize the tile rack with draggable tiles
   function initTiles() {
     $("#tile-rack").empty();
     const rack = getRandomTiles(rackSize);
-    rack.forEach(letter => addTileToRack(letter));
+
+    rack.forEach(letter => {
+      const tile = $('<img>')
+        .addClass('tile')
+        .attr('src', `images/tiles/${letter}.jpg`)
+        .attr('data-letter', letter)
+        .attr('data-value', ScrabbleTiles[letter].value)
+        .draggable({
+          // Tile can revert based on board rules
+          revert: function (dropped) {
+            if (!dropped || $(dropped).children('img.tile').length > 0) return true;
+
+            const droppedIndex = $('.drop-slot').index(dropped);
+            const occupiedIndices = [];
+
+            $('.drop-slot').each(function (idx) {
+              if ($(this).children('img.tile').length > 0) {
+                occupiedIndices.push(idx);
+              }
+            });
+
+            // Ensure first tile is in first slot
+            if (occupiedIndices.length === 0) return droppedIndex !== 0;
+
+            const minIndex = Math.min(...occupiedIndices);
+            if (droppedIndex < minIndex) return true;
+
+            occupiedIndices.push(droppedIndex);
+            occupiedIndices.sort((a, b) => a - b);
+            const maxIndex = occupiedIndices[occupiedIndices.length - 1];
+
+            // Ensure tiles are contiguous
+            return maxIndex - minIndex + 1 !== occupiedIndices.length;
+          }
+        });
+
+      $('#tile-rack').append(tile);
+    });
   }
 
-  /**
-   * Add only missing tiles to the rack (after a valid word submission)
-   */
-  function refillMissingTiles() {
-    const currentCount = $('#tile-rack .tile').length;
-    const tilesToAdd = rackSize - currentCount;
-
-    if (tilesToAdd <= 0) return;
-
-    const newTiles = getRandomTiles(tilesToAdd);
-    newTiles.forEach(letter => addTileToRack(letter));
-  }
-
-  /**
-   * Helper to create a draggable tile image element and add it to rack
-   * @param {string} letter - The letter for the tile
-   */
-  function addTileToRack(letter) {
-    const tile = $('<img>')
-      .addClass('tile')
-      .attr('src', `images/tiles/${letter}.jpg`)
-      .attr('data-letter', letter)
-      .attr('data-value', ScrabbleTiles[letter].value)
-      .draggable({
-        // Logic for reverting invalid drops (enforces contiguous placement)
-        revert: function (dropped) {
-          if (!dropped || $(dropped).children('img.tile').length > 0) return true;
-          const droppedIndex = $('.drop-slot').index(dropped);
-          const occupiedIndices = [];
-
-          $('.drop-slot').each(function (idx) {
-            if ($(this).children('img.tile').length > 0) {
-              occupiedIndices.push(idx);
-            }
-          });
-
-          if (occupiedIndices.length === 0) return droppedIndex !== 0;
-
-          const minIndex = Math.min(...occupiedIndices);
-          if (droppedIndex < minIndex) return true;
-
-          occupiedIndices.push(droppedIndex);
-          occupiedIndices.sort((a, b) => a - b);
-          const maxIndex = occupiedIndices[occupiedIndices.length - 1];
-
-          return maxIndex - minIndex + 1 !== occupiedIndices.length;
-        }
-      });
-
-    $('#tile-rack').append(tile);
-  }
-
-  /**
-   * Setup droppable behavior on board slots
-   */
+  // Make board slots droppable and handle tile placement rules
   function initDroppables() {
     $('.drop-slot').droppable({
       accept: '.tile',
@@ -165,9 +141,10 @@ $(function () {
         const $slot = $(this);
         const droppedIndex = $('.drop-slot').index($slot);
 
-        if ($slot.children().length > 0) return; // Prevent multiple tiles in one slot
+        // Prevent overwriting already occupied slots
+        if ($slot.children().length > 0) return;
 
-        // Handle wildcard blank tile: prompt user for letter choice
+        // Handle blank tile replacement
         const letter = $tile.attr('data-letter');
         if (letter === "_") {
           let chosen = prompt("Enter the letter this blank tile represents:").toUpperCase();
@@ -176,7 +153,6 @@ $(function () {
           $tile.attr('src', `images/tiles/${chosen}.jpg`);
         }
 
-        // Check contiguous placement rules
         const occupiedIndices = [];
         $('.drop-slot').each(function (idx) {
           if ($(this).children('img.tile').length > 0) {
@@ -184,6 +160,7 @@ $(function () {
           }
         });
 
+        // Enforce first tile must be placed in first slot
         if (occupiedIndices.length === 0 && droppedIndex !== 0) {
           $tile.draggable('option', 'revert', true);
           return;
@@ -195,6 +172,7 @@ $(function () {
           return;
         }
 
+        // Enforce contiguity
         occupiedIndices.push(droppedIndex);
         occupiedIndices.sort((a, b) => a - b);
         const maxIndex = occupiedIndices[occupiedIndices.length - 1];
@@ -205,22 +183,16 @@ $(function () {
           return;
         }
 
-        // Accept drop: move tile into slot and disable dragging
+        // Accept the drop
         $tile.detach().css({ top: 0, left: 0 }).appendTo($slot);
         $tile.draggable('disable');
-
-        // Enable submit button since tiles are on the board
         $('#submit-word').prop('disabled', false);
         updateCurrentScoreDisplay();
       }
     });
   }
 
-  /**
-   * Calculate the score for the current placed word on the board,
-   * considering letter and word bonuses
-   * @returns {number} calculated score
-   */
+  // Compute score based on placed tiles and bonuses
   function calculateScore() {
     let total = 0;
     let multiplier = 1;
@@ -241,18 +213,13 @@ $(function () {
     return total * multiplier;
   }
 
-  /**
-   * Update the displayed score, showing current word score and total score
-   */
+  // Update the score display UI
   function updateCurrentScoreDisplay() {
     const currentScore = calculateScore();
     $('#score').text(`Current Word Score: ${currentScore} (Total: ${totalScore})`);
   }
 
-  /**
-   * Reads the word formed on the board by concatenating placed tile letters
-   * @returns {string} formed word
-   */
+  // Construct the word formed by tiles on the board
   function getSubmittedWord() {
     let word = '';
     $('.drop-slot').each(function () {
@@ -262,19 +229,14 @@ $(function () {
     return word;
   }
 
-  /**
-   * Clears the board tiles and resets submit button and score display
-   */
+  // Clear the board slots and update UI
   function clearBoard() {
     $('.drop-slot').empty();
     $('#submit-word').prop('disabled', true);
     $('#score').text(`Score: ${totalScore}`);
   }
 
-  /**
-   * Resets the rack and board, returning used tiles to the pool,
-   * then initializes a full new rack
-   */
+  // Reset the rack, restoring used tiles and refilling
   function resetRack() {
     $('#tile-rack, .drop-slot').find('img.tile').each(function () {
       const letter = $(this).attr('data-letter');
@@ -285,16 +247,12 @@ $(function () {
     initTiles();
   }
 
-  /**
-   * Checks if a word is valid by looking it up in the dictionary set
-   * @param {string} word - word to validate
-   * @returns {boolean} true if valid
-   */
+  // Check if the submitted word is valid
   function validateWord(word) {
     return dictionarySet.has(word.toUpperCase());
   }
 
-  // Handler for Submit Word button click
+  // Handle submit button click: validate word, update score, refresh board
   $('#submit-word').click(function () {
     const word = getSubmittedWord();
 
@@ -309,27 +267,22 @@ $(function () {
       const score = calculateScore();
       totalScore += score;
       $('#message').text(`✔ "${word}" is valid! +${score} points`).css('color', 'green');
-
-      // Clear board and refill only missing rack tiles
       clearBoard();
       updateCurrentScoreDisplay();
-      refillMissingTiles();
-      initDroppables();
-
+      initTiles();         // Refill rack
+      initDroppables();    // Re-initialize board slots
     } else {
       $('#message').text(`✖ "${word}" is not valid. Try again.`).css('color', 'red');
-
-      // Clear board and reset full rack if word invalid
       clearBoard();
-      resetRack();
+      resetRack(); // Return tiles to rack if word is invalid
     }
   });
 
-  // Handler for New Game button click: resets everything
+  // Handle "New Game" button: reset everything
   $('#new-game').click(function () {
     totalScore = 0;
-    resetRack();
-    clearBoard();
+    resetRack();     // Get new tiles
+    clearBoard();    // Clear board
     $('#message').text('');
     $('#score').text('Score: 0');
   });
