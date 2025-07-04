@@ -1,0 +1,106 @@
+/**
+File: scrabble.css
+GUI Assignment:  Homework 5
+Sarah Toth, UML C.S., Sarah_Toth@student.uml.edu
+Copyright (c) 2025 by Sarah.  All rights reserved.
+Updated by ST on July 4, 2025 at 4:15 AM
+**/
+
+/* Set base font and background color for the page */
+body {
+  font-family: Arial, sans-serif;
+  text-align: center;
+  background-color: #f4f4f4;
+}
+
+/* Space above the main heading */
+h1 {
+  margin-top: 20px;
+}
+
+/* Main game container: centers content and limits max width */
+#game-container {
+  max-width: 1000px;
+  margin: auto;
+  padding: 20px;
+}
+
+/* Player's tile rack styling */
+#tile-rack {
+  display: grid;                              /* Grid layout for tiles */
+  grid-template-columns: repeat(7, 60px);     /* 7 columns of fixed width */
+  gap: 5px;                                   /* Space between tiles */
+  justify-content: center;                    /* Center tiles horizontally */
+  align-items: center;                        /* Center tiles vertically */
+  background: url('../images/tile_rack.png') no-repeat center;
+  background-size: contain;
+  height: 100px;
+  width: fit-content;                         /* Auto-size to fit tile width */
+  margin: 0 auto 30px auto;                   /* Center with space below */
+  padding: 10px;
+  position: relative;
+}
+
+/* Reset position for tiles inside the rack */
+#tile-rack .tile {
+  position: relative;
+  top: auto;
+  left: auto;
+}
+
+/* General tile style */
+.tile {
+  width: 60px;
+  height: 60px;
+  cursor: move;                               /* Show grab cursor */
+  z-index: 10;                                /* Ensure tile is above other elements */
+}
+
+/* Scrabble board: 15 slots in a row */
+#scrabble-board {
+  display: grid;
+  grid-template-columns: repeat(15, 1fr);     /* 15 equal columns */
+  width: 900px;
+  height: 60px;
+  background: url('../images/single_line_board.png') no-repeat center;
+  background-size: cover;
+  margin: 0 auto;                             /* Center the board */
+  align-items: center;                        /* Center tiles vertically in slots */
+}
+
+/* Drop slots for tiles */
+.drop-slot {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: flex;                              /* Allows centering of dropped tiles */
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;                           /* Prevent overflow from tile drag/drop */
+}
+
+/* Highlight double-letter bonus slots */
+.drop-slot[data-bonus="double-letter"] {
+  outline: 2px solid lightblue;
+}
+
+/* Highlight double-word bonus slots */
+.drop-slot[data-bonus="double-word"] {
+  outline: 2px solid pink;
+}
+
+/* Style for buttons (submit and new game) */
+button {
+  margin-top: 20px;
+  margin-right: 10px;
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+/* Score display styling */
+#score {
+  margin-top: 15px;
+  font-size: 18px;
+  font-weight: bold;
+}
